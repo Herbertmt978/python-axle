@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aioaxlevpp"
+version = "0.1.0"
+description = "Asynchronous client for Axle Energy Home Assistant grid events"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+dependencies = ["aiohttp>=3.11.0"]
+
+[project.urls]
+Source = "https://github.com/Herbertmt978/python-axle"
+Issues = "https://github.com/Herbertmt978/python-axle/issues"
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio", "pytest-cov", "ruff", "mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--cov=aioaxlevpp --cov-report=term-missing --cov-fail-under=95"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+strict = true
