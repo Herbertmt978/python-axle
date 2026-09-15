@@ -34,6 +34,11 @@ def parse_event(payload: object) -> GridEvent | None:
         return None
     if not isinstance(payload, dict):
         raise AxleError("Invalid event response")
+    if all(
+        key in payload and payload[key] is None
+        for key in ("start_time", "end_time", "import_export")
+    ):
+        return None
     try:
         start = _timestamp(payload["start_time"])
         end = _timestamp(payload["end_time"])

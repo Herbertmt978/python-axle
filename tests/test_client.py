@@ -82,13 +82,50 @@ async def test_event(direction: str) -> None:
             assert not session.closed
 
 
-@pytest.mark.parametrize("body", ["null", "{}"])
-async def test_no_event(body: str) -> None:
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        {},
+        pytest.param(
+            {"start_time": None, "end_time": None, "import_export": None},
+            id="null-event-fields",
+        ),
+        pytest.param(
+            {
+                "start_time": None,
+                "end_time": None,
+                "import_export": None,
+                "updated_at": "2026-09-15T17:24:05+00:00",
+                "opted_out": False,
+            },
+            id="no-event-with-metadata",
+        ),
+    ],
+)
+async def test_no_event(payload: object) -> None:
     """Accept empty successful responses."""
     async with ClientSession() as session:
         with mock_responses() as responses:
-            responses.get(EVENT_URL, body=body)
+            responses.get(EVENT_URL, payload=payload)
             assert await AxleClient(session, "test-token").get_event() is None
+
+
+async def test_event_after_empty_schedule() -> None:
+    """An empty schedule must not prevent the next event from being read."""
+    async with ClientSession() as session:
+        with mock_responses() as responses:
+            client = AxleClient(session, "test-token")
+            responses.get(EVENT_URL, payload=EVENT)
+            assert await client.get_event() is not None
+            responses.get(
+                EVENT_URL,
+                payload={"start_time": None, "end_time": None, "import_export": None},
+            )
+            assert await client.get_event() is None
+            responses.get(EVENT_URL, payload=EVENT)
+            assert await client.get_event() is not None
+            assert not session.closed
 
 
 @pytest.mark.parametrize(
@@ -139,6 +176,11 @@ async def test_cancellation() -> None:
         "bad",
         {"error": "bad"},
         {**EVENT, "start_time": None},
+        {**EVENT, "end_time": None},
+        {**EVENT, "import_export": None},
+        {"start_time": None, "end_time": None},
+        {"start_time": None, "import_export": None},
+        {"end_time": None, "import_export": None},
         {**EVENT, "start_time": "2026-09-11T17:00:00"},
         {**EVENT, "start_time": "invalid"},
         {**EVENT, "import_export": 1},
