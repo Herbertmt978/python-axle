@@ -14,6 +14,7 @@ from aioaxlevpp import (
     AxleClient,
     AxleConnectionError,
     AxleError,
+    AxleStatus,
 )
 from aioaxlevpp.client import EVENT_URL
 
@@ -79,6 +80,7 @@ async def test_event(direction: str) -> None:
             assert request.kwargs["headers"]["Authorization"] == "Bearer test-token"
             assert request.kwargs["allow_redirects"] is False
             assert request.kwargs["timeout"].total == 10
+            assert responses.get_mock.call_count == 1
             assert not session.closed
 
 
@@ -224,3 +226,86 @@ async def test_invalid_opt_out_flag() -> None:
             responses.get(EVENT_URL, payload={**EVENT, "opted_out": "false"})
             with pytest.raises(AxleError, match="Invalid event response"):
                 await AxleClient(session, "test-token").get_event()
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_event", "expected_flag"),
+    [
+        pytest.param(EVENT, True, None, id="scheduled-missing-flag"),
+        pytest.param({**EVENT, "opted_out": True}, True, True, id="scheduled-true"),
+        pytest.param({**EVENT, "opted_out": False}, True, False, id="scheduled-false"),
+        pytest.param(
+            {"start_time": None, "end_time": None, "import_export": None},
+            False,
+            None,
+            id="empty-missing-flag",
+        ),
+        pytest.param(
+            {
+                "start_time": None,
+                "end_time": None,
+                "import_export": None,
+                "opted_out": True,
+            },
+            False,
+            True,
+            id="empty-true",
+        ),
+        pytest.param(
+            {
+                "start_time": None,
+                "end_time": None,
+                "import_export": None,
+                "opted_out": False,
+            },
+            False,
+            False,
+            id="empty-false",
+        ),
+        pytest.param({}, False, None, id="empty-object"),
+        pytest.param(None, False, None, id="null-response"),
+    ],
+)
+async def test_get_status(
+    payload: object, expected_event: bool, expected_flag: bool | None
+) -> None:
+    """Return the event and raw flag with one request for all response shapes."""
+    async with ClientSession() as session:
+        with mock_responses() as responses:
+            responses.get(EVENT_URL, payload=payload)
+            status = await AxleClient(session, "test-token").get_status()
+            assert isinstance(status, AxleStatus)
+            assert (status.event is not None) is expected_event
+            assert status.opted_out is expected_flag
+            if status.event is not None and expected_flag is None:
+                assert status.event.opted_out is False
+            assert responses.get_mock.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {**EVENT, "opted_out": None},
+        {**EVENT, "opted_out": "false"},
+        {
+            "start_time": None,
+            "end_time": None,
+            "import_export": None,
+            "opted_out": None,
+        },
+        {
+            "start_time": None,
+            "end_time": None,
+            "import_export": None,
+            "opted_out": "false",
+        },
+    ],
+)
+async def test_get_status_rejects_non_boolean_flag(payload: object) -> None:
+    """Reject invalid raw flags, including when event fields are empty."""
+    async with ClientSession() as session:
+        with mock_responses() as responses:
+            responses.get(EVENT_URL, payload=payload)
+            with pytest.raises(AxleError, match="Invalid event response"):
+                await AxleClient(session, "test-token").get_status()
+            assert responses.get_mock.call_count == 1

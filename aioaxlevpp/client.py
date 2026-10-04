@@ -3,7 +3,7 @@
 from aiohttp import ClientError, ClientSession, ClientTimeout
 
 from .exceptions import AxleAuthenticationError, AxleConnectionError, AxleError
-from .models import GridEvent, parse_event
+from .models import AxleStatus, GridEvent, parse_status
 
 EVENT_URL = "https://api.axle.energy/vpp/home-assistant/event"
 
@@ -17,7 +17,11 @@ class AxleClient:
         self._token = token
 
     async def get_event(self) -> GridEvent | None:
-        """Read the next event; transport failures never include response bodies."""
+        """Read the next event, omitting participation status."""
+        return (await self.get_status()).event
+
+    async def get_status(self) -> AxleStatus:
+        """Read the event and raw participation flag in one request."""
         try:
             async with self._session.get(
                 EVENT_URL,
@@ -38,4 +42,4 @@ class AxleClient:
                     raise AxleError("Invalid JSON response") from None
         except (ClientError, TimeoutError):
             raise AxleConnectionError("Unable to retrieve grid events") from None
-        return parse_event(payload)
+        return parse_status(payload)

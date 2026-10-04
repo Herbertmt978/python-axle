@@ -52,6 +52,18 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+To read the event and Axle's raw participation flag together, use
+`get_status()`. Its `opted_out` value is `True` or `False` when Axle returns a
+Boolean, and `None` when the field is absent. The provider documentation does
+not define whether this flag describes an account or a particular event, so
+the client preserves the value without interpreting it as consent. A malformed
+flag raises `AxleError`, including when the schedule is empty.
+
+```python
+status = await AxleClient(session, token).get_status()
+print(status.event, status.opted_out)
+```
+
 Get the token through Axle's Home Assistant setup. Keep it out of source code,
 logs, and issue reports. The client does not close the session; the caller
 owns its lifetime and polling schedule. Axle's published example polls every
@@ -59,11 +71,15 @@ owns its lifetime and polling schedule. Axle's published example polls every
 
 ## Response and errors
 
-`get_event()` returns a frozen `GridEvent` with timezone-aware `start`, `end`,
-and `updated_at` values, a direction of `import` or `export`, and a Boolean
-`opted_out` flag. It returns `None` for JSON `null`, an empty object, or an
-object whose `start_time`, `end_time`, and `import_export` fields are explicitly
-null. Malformed events raise an error rather than being treated as no event.
+`get_status()` returns a frozen `AxleStatus` containing an optional frozen
+`GridEvent` and the optional raw Boolean `opted_out` flag. `get_event()` remains
+available and returns only the `GridEvent` (or `None`) from the same response.
+An event contains timezone-aware `start`, `end`, and `updated_at` values, a
+direction of `import` or `export`, and a Boolean `opted_out` field (defaulting
+to `False` when the raw flag is absent for compatibility). Both methods return
+no event for JSON `null`, an empty object, or an object whose `start_time`,
+`end_time`, and `import_export` fields are explicitly null. Malformed events or
+non-Boolean raw flags raise an error rather than being treated as no event.
 
 | Exception | Meaning |
 | --- | --- |
