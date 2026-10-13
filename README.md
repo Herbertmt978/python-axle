@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Herbertmt978/python-axle/main/brand/header.svg" alt="aioaxlevpp wordmark with a grid event pulse" width="760">
+<img src="https://raw.githubusercontent.com/Herbertmt978/python-axle/main/brand/header.svg" alt="aioaxlevpp: a grid demand chart with a highlighted grid event window" width="880">
 
 # aioaxlevpp
 
